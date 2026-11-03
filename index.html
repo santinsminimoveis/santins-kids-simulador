@@ -200,19 +200,19 @@ function render(){
 function load(){const m=models[index];canvas.width=m.w;canvas.height=m.h;originalPixels=null;const im=new Image();im.onload=()=>{ctx.drawImage(im,0,0,m.w,m.h);originalPixels=ctx.getImageData(0,0,m.w,m.h);render()};im.src=m.src;status.textContent='Escolha a cor e clique em uma porta ou gaveta.'}select.onchange=()=>{index=+select.value;load()};document.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{current=b.dataset.color;document.querySelectorAll('.choice').forEach(c=>c.classList.toggle('active',c===b));status.textContent='Cor selecionada: '+b.querySelector('b').textContent+'. Clique na peça desejada.'});canvas.onclick=e=>{const m=models[index],r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*m.w/r.width,y=(e.clientY-r.top)*m.h/r.height;let j=m.doors.findLastIndex(d=>insideRect(d.rect,x,y));if(j<0)return;m.values[j]=current;render();status.textContent=m.doors[j].name+' — '+document.querySelector('.choice.active b').textContent};document.getElementById('reset').onclick=()=>{models[index].values.fill('white');render();status.textContent='Todas as peças deste modelo estão brancas.'};document.getElementById('download').onclick=()=>{const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='Santins-Kids-modelo-'+(index+1)+'.png';a.click()};document.getElementById('whatsapp').onclick=()=>{
  const m=models[index];
  const names={white:'Branco original',pink:'Rosa Milkshake',mint:'Verde Mint',beton:'Cinza Beton',blue:'Azul Claro',lilac:'Lilás'};
- const details=m.doors.map((d,i)=>d.name+': '+(names[m.values[i]]||m.values[i])).join('\\n');
+ const details=m.doors.map((d,i)=>d.name+': '+(names[m.values[i]]||m.values[i])).join('\n');
  const clientName=document.getElementById('clientName').value.trim();
  const clientPhone=document.getElementById('clientPhone').value.trim();
  const clientCity=document.getElementById('clientCity').value.trim();
- const clientCep=document.getElementById('clientCep').value.replace(/\\D/g,'');
+ const clientCep=document.getElementById('clientCep').value.replace(/\D/g,'');
  const clientNotes=document.getElementById('clientNotes').value.trim();
  const clientConsent=document.getElementById('clientConsent').checked;
- if(!clientName || clientPhone.replace(/\\D/g,'').length<10 || !clientCity || clientCep.length!==8 || !clientConsent){
+ if(!clientName || clientPhone.replace(/\D/g,'').length<10 || !clientCity || clientCep.length!==8 || !clientConsent){
    status.textContent='Preencha nome, WhatsApp com DDD, cidade e CEP de 8 números, e marque a autorização para solicitar o orçamento.';
    document.getElementById('customer').scrollIntoView({behavior:'smooth',block:'center'});
    return;
  }
- const message='💕 *SANTINS KIDS*\\n*SOLICITAÇÃO DE ORÇAMENTO*\\n\\nOlá! Personalizei minha mini cozinha e gostaria de receber um orçamento.\\n\\n👤 *DADOS DO CLIENTE*\\nNome: '+clientName+'\\nWhatsApp: '+clientPhone+'\\nCidade/Estado: '+clientCity+'\\nCEP para entrega: '+clientCep.slice(0,5)+'-'+clientCep.slice(5)+'\\n\\n🏡 *MINI COZINHA PERSONALIZADA*\\nModelo: '+m.name+'\\n\\n🎨 *CORES ESCOLHIDAS*\\n'+details+(clientNotes?'\\n\\n📝 *OBSERVAÇÕES*\\n'+clientNotes:'')+'\\n\\n📸 Vou enviar a imagem personalizada em seguida, nesta mesma conversa.\\n\\nGostaria de informações sobre valores, prazo de produção e frete. Obrigado!';
+ const message='💕 *SANTINS KIDS*\n*SOLICITAÇÃO DE ORÇAMENTO*\n\nOlá! Personalizei minha mini cozinha e gostaria de receber um orçamento.\n\n👤 *DADOS DO CLIENTE*\nNome: '+clientName+'\nWhatsApp: '+clientPhone+'\nCidade/Estado: '+clientCity+'\nCEP para entrega: '+clientCep.slice(0,5)+'-'+clientCep.slice(5)+'\n\n🏡 *MINI COZINHA PERSONALIZADA*\nModelo: '+m.name+'\n\n🎨 *CORES ESCOLHIDAS*\n'+details+(clientNotes?'\n\n📝 *OBSERVAÇÕES*\n'+clientNotes:'')+'\n\n📸 Vou enviar a imagem personalizada em seguida, nesta mesma conversa.\n\nGostaria de informações sobre valores, prazo de produção e frete. Obrigado!';
  const whatsappUrl='https://wa.me/5511974123175?text='+encodeURIComponent(message);
  status.textContent='Abrindo o WhatsApp da Santins Kids (final 3175). Envie o texto, depois volte e baixe a imagem personalizada para anexar na mesma conversa.';
  // Navegação direta no mesmo separador evita bloqueio de pop-ups no celular.
