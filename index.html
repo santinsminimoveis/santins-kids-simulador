@@ -200,7 +200,7 @@ function load(){const m=models[index];canvas.width=m.w;canvas.height=m.h;origina
    document.getElementById('customer').scrollIntoView({behavior:'smooth',block:'center'});
    return;
  }
- const message='Olá! Personalizei uma mini cozinha no simulador da Santins Mini Móveis e gostaria de um orçamento.\n\nCliente: '+clientName+'\nWhatsApp: '+clientPhone+'\nCidade/Estado: '+clientCity+'\n\nModelo: '+m.name+'\n'+details+(clientNotes?'\n\nObservações: '+clientNotes:'');
+ const message='💕 *SANTINS KIDS*\n*SOLICITAÇÃO DE ORÇAMENTO*\n\nOlá! Personalizei minha mini cozinha e gostaria de receber um orçamento.\n\n👤 *DADOS DO CLIENTE*\nNome: '+clientName+'\nWhatsApp: '+clientPhone+'\nCidade/Estado: '+clientCity+'\n\n🏡 *MINI COZINHA PERSONALIZADA*\nModelo: '+m.name+'\n\n🎨 *CORES ESCOLHIDAS*\n'+details+(clientNotes?'\n\n📝 *OBSERVAÇÕES*\n'+clientNotes:'')+'\n\n📸 Imagem personalizada anexada.\n\nGostaria de informações sobre valores, prazo de produção e frete. Obrigado!';
  const whatsappUrl='https://wa.me/5511974123175?text='+encodeURIComponent(message);
  const filename='Santins-Kids-modelo-'+(index+1)+'.png';
  button.disabled=true;
