@@ -26,7 +26,9 @@ header p{color:#6c6062;max-width:690px;margin:10px auto}
 <div id="addressFields" style="display:none"><label for="clientStreet">Rua / Logradouro *</label><input id="clientStreet" autocomplete="address-line1" maxlength="150" placeholder="Preenchimento automático ou digite a rua">
 <label for="clientNumber">Número *</label><input id="clientNumber" inputmode="numeric" autocomplete="address-line2" maxlength="20" placeholder="Ex.: 125 ou S/N">
 <label for="clientComplement">Complemento (opcional)</label><input id="clientComplement" maxlength="100" placeholder="Apartamento, bloco, casa...">
-<label for="clientDistrict">Bairro *</label><input id="clientDistrict" maxlength="100" placeholder="Preenchimento automático ou digite o bairro"><label for="clientCity">Cidade e estado *</label><input id="clientCity" autocomplete="address-level2" maxlength="100" placeholder="Ex.: Santo André / SP"></div><label for="clientNotes">Observações (opcional)</label><textarea id="clientNotes" maxlength="350" placeholder="Algum detalhe especial?"></textarea><div class="privacy"><input type="checkbox" id="clientConsent"><label for="clientConsent">Autorizo o envio dos dados informados à Santins Kids pelo WhatsApp para receber meu orçamento. Não é necessário criar uma conta.</label></div><p class="subtext">Os dados não são salvos neste site. Você poderá conferir a mensagem no WhatsApp antes de enviar.</p></div><button class="btn" id="whatsapp" style="background:#168b51">Enviar imagem + dados do pedido pelo WhatsApp</button>
+<label for="clientDistrict">Bairro *</label><input id="clientDistrict" maxlength="100" placeholder="Preenchimento automático ou digite o bairro"><label for="clientCity">Cidade e estado *</label><input id="clientCity" autocomplete="address-level2" maxlength="100" placeholder="Ex.: Santo André / SP"></div><label for="clientNotes">Observações (opcional)</label><textarea id="clientNotes" maxlength="350" placeholder="Algum detalhe especial?"></textarea><div class="privacy"><input type="checkbox" id="clientConsent"><label for="clientConsent">Autorizo o envio dos dados informados à Santins Kids pelo WhatsApp para receber meu orçamento. Não é necessário criar uma conta.</label></div><p class="subtext">Os dados do cliente serão incluídos no WhatsApp. Apenas a imagem da cozinha será armazenada por até 7 dias para gerar um link público de visualização.</p></div><button class="btn" id="whatsapp" style="background:#168b51">Abrir WhatsApp Santins Kids com o pedido (colar imagem)</button>
+<button class="btn" id="shareBoth" style="background:#217d72">Compartilhar imagem + texto juntos (escolher conversa)</button>
+<p class="subtext">A imagem da mini cozinha será salva por 7 dias e o link será incluído na mensagem do WhatsApp. O contato da Santins abre diretamente, sem precisar salvá-lo. Não publique informações pessoais na imagem.</p>
 <button class="btn" id="textOnly" style="display:none;background:#168b51">Enviar pedido em texto ao WhatsApp (final 3175)</button>
 <button class="btn" id="download">Baixar imagem personalizada (opcional)</button>
 
@@ -298,75 +300,68 @@ function criarCartaoProducaoV38(message){
  }
  return painel;
 }
-document.getElementById('whatsapp').onclick=async()=>{
+// V41: envia somente a foto do produto ao D1; dados pessoais permanecem no WhatsApp.
+const SANTINS_PEDIDOS_API='https://still-brook-10a2santins-pedidos.santinsplanejados.workers.dev';
+const santinsBotaoEnviar=document.getElementById('whatsapp');
+santinsBotaoEnviar.textContent='Enviar pedido com link da imagem pelo WhatsApp';
+document.getElementById('shareBoth').style.display='none';
+document.getElementById('textOnly').style.display='none';
+async function santinsJpegReduzido(fonte){
+  // JPEG compacto, sem nome/endereco/telefone na imagem publica.
+  for(const largura of [900,720,560,420]){
+    const escala=Math.min(1,largura/fonte.width);
+    const cv=document.createElement('canvas');
+    cv.width=Math.max(1,Math.round(fonte.width*escala));
+    cv.height=Math.max(1,Math.round(fonte.height*escala));
+    const ctx=cv.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(fonte,0,0,cv.width,cv.height);
+    for(const qualidade of [0.78,0.60,0.44]){
+      const blob=await new Promise(resolve=>cv.toBlob(resolve,'image/jpeg',qualidade));
+      if(blob && blob.size<=340000)return blob;
+    }
+  }
+  throw new Error('A imagem ficou muito grande para o armazenamento.');
+}
+santinsBotaoEnviar.onclick=async()=>{
  const m=models[index];
- const names={white:'Branco original',pink:'Rosa Milkshake',mint:'Verde Mint',beton:'Cinza Beton',blue:'Azul Claro',lilac:'Lilás'};
- const details=m.doors.map((d,i)=>d.name+': '+(names[m.values[i]]||m.values[i])).join('\n');
- const clientName=document.getElementById('clientName').value.trim();
- const clientPhone=document.getElementById('clientPhone').value.trim();
- const clientCity=document.getElementById('clientCity').value.trim();
- const clientCep=document.getElementById('clientCep').value.replace(/\D/g,'');
- const clientStreet=document.getElementById('clientStreet').value.trim();
- const clientNumber=document.getElementById('clientNumber').value.trim();
- const clientComplement=document.getElementById('clientComplement').value.trim();
- const clientDistrict=document.getElementById('clientDistrict').value.trim();
- const clientNotes=document.getElementById('clientNotes').value.trim();
- const clientConsent=document.getElementById('clientConsent').checked;
- if(!clientName || clientPhone.replace(/\D/g,'').length<10 || !clientCity || clientCep.length!==8 || !clientStreet || !clientNumber || !clientDistrict || !clientConsent){
+ const nomes={white:'Branco original',pink:'Rosa Milkshake',mint:'Verde Mint',beton:'Cinza Beton',blue:'Azul Claro',lilac:'Lilás'};
+ const detalhes=m.doors.map((d,i)=>d.name+': '+(nomes[m.values[i]]||m.values[i])).join('\n');
+ const nome=document.getElementById('clientName').value.trim();
+ const telefone=document.getElementById('clientPhone').value.trim();
+ const cidade=document.getElementById('clientCity').value.trim();
+ const cep=document.getElementById('clientCep').value.replace(/\D/g,'');
+ const rua=document.getElementById('clientStreet').value.trim();
+ const numero=document.getElementById('clientNumber').value.trim();
+ const complemento=document.getElementById('clientComplement').value.trim();
+ const bairro=document.getElementById('clientDistrict').value.trim();
+ const observacoes=document.getElementById('clientNotes').value.trim();
+ if(!nome || telefone.replace(/\D/g,'').length<10 || !cidade || cep.length!==8 || !rua || !numero || !bairro || !document.getElementById('clientConsent').checked){
    status.textContent='Preencha nome, WhatsApp, CEP, rua, número, bairro e cidade/estado, e marque a autorização.';
    document.getElementById('customer').scrollIntoView({behavior:'smooth',block:'center'});
    return;
  }
- const message='💕 *SANTINS KIDS*\n*SOLICITAÇÃO DE ORÇAMENTO*\n\nOlá! Personalizei minha mini cozinha e gostaria de receber um orçamento.\n\n👤 *DADOS DO CLIENTE*\nNome: '+clientName+'\nWhatsApp: '+clientPhone+'\nCEP para entrega: '+clientCep.slice(0,5)+'-'+clientCep.slice(5)+'\nEndereço: '+clientStreet+', '+clientNumber+(clientComplement?' - '+clientComplement:'')+'\nBairro: '+clientDistrict+'\nCidade/Estado: '+clientCity+'\n\n🏡 *MINI COZINHA PERSONALIZADA*\nModelo: '+m.name+resumoFinanceiroV29(index,clientCep)+'\n\n🎨 *CORES ESCOLHIDAS*\n'+details+(clientNotes?'\n\n📝 *OBSERVAÇÕES*\n'+clientNotes:'')+'\n\n📸 Imagem personalizada anexada a este pedido.\n\nGostaria de informações sobre valores, prazo de produção e frete. Obrigado!';
-
- const whatsappUrl='https://wa.me/5511974123175?text='+encodeURIComponent(message);
- // Windows: copiar a imagem de produção e abrir o pedido diretamente na conversa.
- // O usuário cola a imagem com Ctrl+V no WhatsApp. O texto já estará no link.
- try {
-   const imagemComResumo=criarCartaoProducaoV38(message);
-   const blob=await new Promise((resolve,reject)=>imagemComResumo.toBlob(b=>b?resolve(b):reject(new Error('Falha ao gerar imagem')),'image/png'));
-   if(navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem!=='undefined') {
-     await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-     status.textContent='Imagem copiada! O WhatsApp será aberto com o texto do pedido. Na conversa, pressione Ctrl+V para anexar a imagem e confira antes de enviar.';
-     window.open(whatsappUrl,'_blank');
-     return;
-   }
-   const a=document.createElement('a');
-   a.href=URL.createObjectURL(blob);
-   a.download='Santins-Kids-Pedido-Modelo-'+(index+1)+'.png';
-   document.body.appendChild(a);a.click();a.remove();
-   setTimeout(()=>URL.revokeObjectURL(a.href),10000);
-   status.textContent='Imagem baixada. Abra a conversa e anexe a imagem ao texto do pedido.';
-   window.open(whatsappUrl,'_blank');
- }catch(err){
-   status.textContent='Não foi possível copiar a imagem automaticamente. Use o botão Baixar imagem e anexe-a ao pedido.';
-   window.open(whatsappUrl,'_blank');
- }
-};
-document.getElementById('textOnly').onclick=()=>{
- const m=models[index];
- // Reutiliza a validação e a composição da mensagem do botão principal.
- const originalShare=navigator.share;
- // Alternativa independente: clique no botão principal sem compartilhamento nativo
- // usando a mesma função de geração de mensagem em vez de modificar o navegador.
- const name=document.getElementById('clientName').value.trim();
- const phone=document.getElementById('clientPhone').value.trim();
- const city=document.getElementById('clientCity').value.trim();
- const cep=document.getElementById('clientCep').value.replace(/\D/g,'');
- const street=document.getElementById('clientStreet').value.trim();
- const number=document.getElementById('clientNumber').value.trim();
- const complement=document.getElementById('clientComplement').value.trim();
- const district=document.getElementById('clientDistrict').value.trim();
- if(!name||phone.replace(/\D/g,'').length<10||!city||cep.length!==8||!street||!number||!district||!document.getElementById('clientConsent').checked){
-   status.textContent='Preencha os dados e autorize o envio antes de continuar.';
-   document.getElementById('customer').scrollIntoView({behavior:'smooth',block:'center'});
+ if(location.protocol==='file:'){
+   status.textContent='Para testar o link da imagem, publique este arquivo como V41.html no GitHub Pages e abra o endereço HTTPS. O Worker bloqueia uploads de arquivos locais.';
    return;
  }
- const names={white:'Branco original',pink:'Rosa Milkshake',mint:'Verde Mint',beton:'Cinza Beton',blue:'Azul Claro',lilac:'Lilás'};
- const details=m.doors.map((d,i)=>d.name+': '+(names[m.values[i]]||m.values[i])).join('\n');
- const notes=document.getElementById('clientNotes').value.trim();
- const msg='💕 *SANTINS KIDS*\n*SOLICITAÇÃO DE ORÇAMENTO*\n\n👤 *DADOS DO CLIENTE*\nNome: '+name+'\nWhatsApp: '+phone+'\nCEP para entrega: '+cep.slice(0,5)+'-'+cep.slice(5)+'\nEndereço: '+street+', '+number+(complement?' - '+complement:'')+'\nBairro: '+district+'\nCidade/Estado: '+city+'\n\n🏡 *MINI COZINHA PERSONALIZADA*\nModelo: '+m.name+resumoFinanceiroV29(index,cep)+'\n\n🎨 *CORES ESCOLHIDAS*\n'+details+(notes?'\n\n📝 *OBSERVAÇÕES*\n'+notes:'')+'\n\n📸 Imagem personalizada enviada separadamente.\n\nGostaria de informações sobre valores, prazo de produção e frete.';
- window.location.href='https://wa.me/5511974123175?text='+encodeURIComponent(msg);
+ santinsBotaoEnviar.disabled=true;
+ status.textContent='Preparando imagem e gerando link do pedido. Aguarde...';
+ try{
+   const jpeg=await santinsJpegReduzido(canvas);
+   const resposta=await fetch(SANTINS_PEDIDOS_API+'/imagem',{
+     method:'POST',headers:{'Content-Type':'image/jpeg'},body:jpeg
+   });
+   const resultado=await resposta.json().catch(()=>({}));
+   if(!resposta.ok || !resultado.url || !/^https:\/\/still-brook-10a2santins-pedidos\.santinsplanejados\.workers\.dev\/p\/[0-9a-f-]{36}$/.test(resultado.url)){
+     throw new Error(resultado.erro||'Não foi possível salvar a imagem (HTTP '+resposta.status+').');
+   }
+   const msg='💕 *SANTINS KIDS*\n*SOLICITAÇÃO DE ORÇAMENTO*\n\nOlá! Personalizei minha mini cozinha e gostaria de receber um orçamento.\n\n👤 *DADOS DO CLIENTE*\nNome: '+nome+'\nWhatsApp: '+telefone+'\nCEP para entrega: '+cep.slice(0,5)+'-'+cep.slice(5)+'\nEndereço: '+rua+', '+numero+(complemento?' - '+complemento:'')+'\nBairro: '+bairro+'\nCidade/Estado: '+cidade+'\n\n🏡 *MINI COZINHA PERSONALIZADA*\nModelo: '+m.name+resumoFinanceiroV29(index,cep)+'\n\n🎨 *CORES ESCOLHIDAS*\n'+detalhes+(observacoes?'\n\n📝 *OBSERVAÇÕES*\n'+observacoes:'')+'\n\n📸 *VER IMAGEM PERSONALIZADA (link válido por 7 dias)*\n'+resultado.url+'\n\nGostaria de informações sobre prazo de produção e entrega. Obrigado!';
+   status.textContent='Imagem salva! Abrindo o WhatsApp da Santins Kids com o link e os dados do pedido...';
+   window.location.href='https://wa.me/5511974123175?text='+encodeURIComponent(msg);
+ }catch(erro){
+   status.textContent='Não foi possível gerar o link da imagem: '+(erro.message||'erro de conexão')+'. Nenhum pedido foi enviado. Confira se abriu o teste no GitHub Pages.';
+ }finally{santinsBotaoEnviar.disabled=false;}
 };
 let cepRequest=0;
 const cepInput=document.getElementById('clientCep');
