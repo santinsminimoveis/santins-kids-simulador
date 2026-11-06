@@ -26,7 +26,7 @@ header p{color:#6c6062;max-width:690px;margin:10px auto}
 <div id="addressFields" style="display:none"><label for="clientStreet">Rua / Logradouro *</label><input id="clientStreet" autocomplete="address-line1" maxlength="150" placeholder="Preenchimento automático ou digite a rua">
 <label for="clientNumber">Número *</label><input id="clientNumber" inputmode="numeric" autocomplete="address-line2" maxlength="20" placeholder="Ex.: 125 ou S/N">
 <label for="clientComplement">Complemento (opcional)</label><input id="clientComplement" maxlength="100" placeholder="Apartamento, bloco, casa...">
-<label for="clientDistrict">Bairro *</label><input id="clientDistrict" maxlength="100" placeholder="Preenchimento automático ou digite o bairro"><label for="clientCity">Cidade e estado *</label><input id="clientCity" autocomplete="address-level2" maxlength="100" placeholder="Ex.: Santo André / SP"></div><label for="clientNotes">Observações (opcional)</label><textarea id="clientNotes" maxlength="350" placeholder="Algum detalhe especial?"></textarea><div class="privacy"><input type="checkbox" id="clientConsent"><label for="clientConsent">Autorizo o envio dos dados informados à Santins Kids pelo WhatsApp para receber meu orçamento. Não é necessário criar uma conta.</label></div><p class="subtext">Os dados não são salvos neste site. Você poderá conferir a mensagem no WhatsApp antes de enviar.</p></div><button class="btn" id="whatsapp" style="background:#168b51">Enviar pedido à Santins Kids — WhatsApp (final 3175)</button>
+<label for="clientDistrict">Bairro *</label><input id="clientDistrict" maxlength="100" placeholder="Preenchimento automático ou digite o bairro"><label for="clientCity">Cidade e estado *</label><input id="clientCity" autocomplete="address-level2" maxlength="100" placeholder="Ex.: Santo André / SP"></div><label for="clientNotes">Observações (opcional)</label><textarea id="clientNotes" maxlength="350" placeholder="Algum detalhe especial?"></textarea><div class="privacy"><input type="checkbox" id="clientConsent"><label for="clientConsent">Autorizo o envio dos dados informados à Santins Kids pelo WhatsApp para receber meu orçamento. Não é necessário criar uma conta.</label></div><p class="subtext">Os dados não são salvos neste site. Você poderá conferir a mensagem no WhatsApp antes de enviar.</p></div><button class="btn" id="whatsapp" style="background:#168b51">Enviar imagem + dados do pedido pelo WhatsApp</button>
 <button class="btn" id="textOnly" style="display:none;background:#168b51">Enviar pedido em texto ao WhatsApp (final 3175)</button>
 <button class="btn" id="download">Baixar imagem personalizada (opcional)</button>
 
@@ -260,6 +260,44 @@ function imagemPedidoComResumoV291(modelIndex, cep){
  linha('Cotação estimada; confirmar no fechamento do pedido.',167,18,'#657a7c');
  return saida;
 }
+// V38: cartão de produção completo. O WhatsApp pode descartar a legenda
+// ao compartilhar arquivos; todos os dados permanecem legíveis na imagem.
+function criarCartaoProducaoV38(message){
+ const largura=1200, margem=64, maxTexto=largura-2*margem;
+ const painel=document.createElement('canvas');
+ const c=painel.getContext('2d');
+ const linhas=[];
+ c.font='26px Arial, sans-serif';
+ for(const original of message.split('\n')){
+   const limpo=original.replace(/\*/g,'').trim();
+   if(!limpo){linhas.push('');continue;}
+   let atual='';
+   for(const palavra of limpo.split(/\s+/)){
+     const tentativa=atual?atual+' '+palavra:palavra;
+     if(c.measureText(tentativa).width>maxTexto && atual){linhas.push(atual);atual=palavra;}
+     else atual=tentativa;
+   }
+   if(atual)linhas.push(atual);
+ }
+ const fotoAltura=Math.round(canvas.height*(largura/canvas.width));
+ const alturaTexto=linhas.length*38+160;
+ painel.width=largura;
+ painel.height=fotoAltura+alturaTexto;
+ const g=painel.getContext('2d');
+ g.fillStyle='#ffffff';g.fillRect(0,0,painel.width,painel.height);
+ g.drawImage(canvas,0,0,largura,fotoAltura);
+ g.fillStyle='#168b51';g.fillRect(0,fotoAltura,largura,10);
+ let y=fotoAltura+68;
+ for(const linha of linhas){
+   if(!linha){y+=38;continue;}
+   const titulo=/^(SANTINS KIDS|SOLICITAÇÃO DE ORÇAMENTO|DADOS DO CLIENTE|MINI COZINHA PERSONALIZADA|RESUMO DO PEDIDO|CORES ESCOLHIDAS|OBSERVAÇÕES|TOTAL PRODUTO)/i.test(linha.replace(/^[^\p{L}\p{N}]+/u,''));
+   g.font=(titulo?'bold ':'')+'26px Arial, sans-serif';
+   g.fillStyle=titulo?'#176f58':'#26393a';
+   g.fillText(linha,margem,y,maxTexto);
+   y+=38;
+ }
+ return painel;
+}
 document.getElementById('whatsapp').onclick=async()=>{
  const m=models[index];
  const names={white:'Branco original',pink:'Rosa Milkshake',mint:'Verde Mint',beton:'Cinza Beton',blue:'Azul Claro',lilac:'Lilás'};
@@ -279,11 +317,30 @@ document.getElementById('whatsapp').onclick=async()=>{
    document.getElementById('customer').scrollIntoView({behavior:'smooth',block:'center'});
    return;
  }
- const message='💕 *SANTINS KIDS*\n*SOLICITAÇÃO DE ORÇAMENTO*\n\nOlá! Personalizei minha mini cozinha e gostaria de receber um orçamento.\n\n👤 *DADOS DO CLIENTE*\nNome: '+clientName+'\nWhatsApp: '+clientPhone+'\nCEP para entrega: '+clientCep.slice(0,5)+'-'+clientCep.slice(5)+'\nEndereço: '+clientStreet+', '+clientNumber+(clientComplement?' - '+clientComplement:'')+'\nBairro: '+clientDistrict+'\nCidade/Estado: '+clientCity+'\n\n🏡 *MINI COZINHA PERSONALIZADA*\nModelo: '+m.name+resumoFinanceiroV29(index,clientCep)+'\n\n🎨 *CORES ESCOLHIDAS*\n'+details+(clientNotes?'\n\n📝 *OBSERVAÇÕES*\n'+clientNotes:'')+'\n\n📸 A imagem personalizada pode ser enviada separadamente pelo cliente.\n\nGostaria de informações sobre valores, prazo de produção e frete. Obrigado!';
+ const message='💕 *SANTINS KIDS*\n*SOLICITAÇÃO DE ORÇAMENTO*\n\nOlá! Personalizei minha mini cozinha e gostaria de receber um orçamento.\n\n👤 *DADOS DO CLIENTE*\nNome: '+clientName+'\nWhatsApp: '+clientPhone+'\nCEP para entrega: '+clientCep.slice(0,5)+'-'+clientCep.slice(5)+'\nEndereço: '+clientStreet+', '+clientNumber+(clientComplement?' - '+clientComplement:'')+'\nBairro: '+clientDistrict+'\nCidade/Estado: '+clientCity+'\n\n🏡 *MINI COZINHA PERSONALIZADA*\nModelo: '+m.name+resumoFinanceiroV29(index,clientCep)+'\n\n🎨 *CORES ESCOLHIDAS*\n'+details+(clientNotes?'\n\n📝 *OBSERVAÇÕES*\n'+clientNotes:'')+'\n\n📸 Imagem personalizada anexada a este pedido.\n\nGostaria de informações sobre valores, prazo de produção e frete. Obrigado!';
 
  const whatsappUrl='https://wa.me/5511974123175?text='+encodeURIComponent(message);
- // Abre a conversa do número fixo, sem acionar a janela de compartilhamento.
- status.textContent='Abrindo a conversa da Santins Kids (final 3175). Confira a mensagem antes de enviar. Para anexar a imagem, use o botão de baixar imagem.';
+ // Compartilhamento nativo pode oferecer imagem e texto no mesmo pedido,
+ // mas o WhatsApp pode descartar o texto. O usuário deve conferir ambos.
+ if(navigator.share && navigator.canShare && typeof File!=='undefined'){
+   try{
+     const imagemComResumo=criarCartaoProducaoV38(message);
+     const blob=await new Promise((resolve,reject)=>imagemComResumo.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar a imagem')),'image/png'));
+     const file=new File([blob],'Santins-Kids-modelo-'+(index+1)+'.png',{type:'image/png'});
+     if(navigator.canShare({files:[file]})){
+       status.textContent='Selecione WhatsApp e a conversa Santins Kids (final 3175). O pedido completo está escrito na imagem, mesmo que o WhatsApp não mantenha a legenda.';
+       await navigator.share({files:[file],text:message});
+       status.textContent='A imagem inclui foto, cores, dados do cliente, produto e frete. Confira o envio no WhatsApp.';
+       return;
+     }
+   }catch(err){
+     if(err && err.name==='AbortError'){
+       status.textContent='Compartilhamento cancelado. Você pode tentar novamente ou usar os botões alternativos.';
+       return;
+     }
+     status.textContent='Não foi possível compartilhar os dois itens juntos neste aparelho. Abrindo o texto pelo WhatsApp; depois compartilhe a imagem no segundo botão.';
+   }
+ }
  window.location.href=whatsappUrl;
 };
 document.getElementById('textOnly').onclick=()=>{
